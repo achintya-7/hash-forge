@@ -11,7 +11,7 @@ import { Upload, Hash, Copy, CheckCircle, Loader2, X, FileText, Trash2 } from "l
 declare global {
   interface Window {
     Go: any;
-    hashFile: (fileData: Uint8Array) => string;
+    hashFile: (fileData: Uint8Array, algorithm?: string) => string;
   }
 }
 
@@ -19,15 +19,26 @@ interface FileItem {
   id: string;
   file: File;
   hash?: string;
+  algorithm?: string;
   status: 'pending' | 'loading' | 'calculating' | 'complete' | 'error';
   error?: string;
 }
+
+const HASH_ALGORITHMS: { value: string; label: string }[] = [
+  { value: "xxh3", label: "XXH3" },
+  { value: "sha256", label: "SHA-256" },
+  { value: "sha512", label: "SHA-512" },
+  { value: "sha1", label: "SHA-1" },
+  { value: "md5", label: "MD5" },
+];
 
 const App: React.FC = () => {
   const [wasmLoaded, setWasmLoaded] = useState(false);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState<string>("");
   const [copied, setCopied] = useState<string>("");
+  const [algorithm, setAlgorithm] = useState<string>("xxh3");
+  const [pendingRecalculation, setPendingRecalculation] = useState(false);
 
   // Load WASM on component mount
   useEffect(() => {
@@ -109,12 +120,12 @@ const App: React.FC = () => {
 
       console.log(`Starting hash calculation for: ${fileItem.file.name}`);
 
-      const hash = window.hashFile(uint8Array);
+      const hash = window.hashFile(uint8Array, algorithm);
 
       // Set complete state
       setFiles(prev => prev.map(f =>
         f.id === fileItem.id
-          ? { ...f, status: 'complete' as const, hash }
+          ? { ...f, status: 'complete' as const, hash, algorithm }
           : f
       ));
 
@@ -130,6 +141,8 @@ const App: React.FC = () => {
   }; const calculateAllHashes = async () => {
     const pendingFiles = files.filter(f => f.status === 'pending');
     if (pendingFiles.length === 0 || !wasmLoaded) return;
+
+    setPendingRecalculation(false);
 
     try {
       // Process files one by one
@@ -164,6 +177,18 @@ const App: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Reset completed hashes when algorithm changes
+  useEffect(() => {
+    if (!wasmLoaded || files.length === 0) return;
+    const hasComplete = files.some(f => f.status === 'complete');
+    if (!hasComplete) return;
+
+    setFiles(prev => prev.map(f =>
+      f.status === 'complete' ? { ...f, status: 'pending' as const, hash: undefined, algorithm: undefined } : f
+    ));
+    setPendingRecalculation(true);
+  }, [algorithm]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-4xl mx-auto">
@@ -176,7 +201,7 @@ const App: React.FC = () => {
             Hash Forge
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Calculate XXH3 hash of your files. All processing happens locally in your browser.
+            Calculate hashes of your files. All processing happens locally in your browser.
           </p>
         </div>
 
@@ -198,10 +223,27 @@ const App: React.FC = () => {
               Select Files
             </CardTitle>
             <CardDescription>
-              Choose one or more files to calculate their XXH3 hashes.
+              Choose one or more files to calculate their hashes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hash Algorithm
+                </label>
+                <select
+                  value={algorithm}
+                  onChange={(e) => setAlgorithm(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                  disabled={!wasmLoaded || files.some(f => f.status === 'loading' || f.status === 'calculating')}
+                >
+                  {HASH_ALGORITHMS.map((a) => (
+                    <option key={a.value} value={a.value}>{a.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <Input
               type="file"
               onChange={handleFileSelect}
@@ -232,7 +274,7 @@ const App: React.FC = () => {
                       ) : (
                         <>
                           <Hash className="h-4 w-4 mr-2 text-green-600" />
-                          Calculate All Hashes
+                          {pendingRecalculation ? "Recalculate All Hashes" : "Calculate All Hashes"}
                         </>
                       )}
                     </Button>
@@ -276,10 +318,13 @@ const App: React.FC = () => {
                         {/* Hash Result */}
                         {fileItem.hash && (
                           <div className="bg-gray-50 p-3 rounded-lg border">
-                            <div className="flex items-center justify-between gap-2">
-                              <code className="text-sm font-mono text-gray-800 break-all">
-                                {fileItem.hash}
-                              </code>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  {fileItem.algorithm ? HASH_ALGORITHMS.find(a => a.value === fileItem.algorithm)?.label ?? fileItem.algorithm : "XXH3"}
+                                </Badge>
+                                <span className="text-xs text-gray-500">hash</span>
+                              </div>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -291,6 +336,9 @@ const App: React.FC = () => {
                                 }
                               </Button>
                             </div>
+                            <code className="text-sm font-mono text-gray-800 break-all">
+                              {fileItem.hash}
+                            </code>
                           </div>
                         )}
 
@@ -388,29 +436,42 @@ const App: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Hash className="h-5 w-5 text-blue-600" />
-              About XXH3
+              About Hash Forge
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-gray-700 mb-4">
-              XXH3 is a fast, high-quality hash algorithm. This tool uses Go compiled to WebAssembly
-              to calculate hashes directly in your browser.
+              This tool uses Go compiled to WebAssembly to calculate hashes directly in your browser.
+              Files never leave your device.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-50 rounded-lg p-4 border">
-                <CheckCircle className="h-6 w-6 text-green-600 mb-2" />
-                <h4 className="font-medium text-gray-900 mb-1">100% Private</h4>
-                <p className="text-sm text-gray-600">Files never leave your device</p>
+                <h4 className="font-medium text-gray-900 mb-2">Available Algorithms</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  {HASH_ALGORITHMS.map((a) => (
+                    <li key={a.value} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                      {a.label}
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 border">
-                <Hash className="h-6 w-6 text-blue-600 mb-2" />
-                <h4 className="font-medium text-gray-900 mb-1">Lightning Fast</h4>
-                <p className="text-sm text-gray-600">Powered by WebAssembly</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 border">
-                <Upload className="h-6 w-6 text-purple-600 mb-2" />
-                <h4 className="font-medium text-gray-900 mb-1">Multiple Files</h4>
-                <p className="text-sm text-gray-600">Process multiple files at once</p>
+                <h4 className="font-medium text-gray-900 mb-2">Key Features</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                    100% Private — files never leave your device
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Hash className="h-3.5 w-3.5 text-blue-600" />
+                    Powered by WebAssembly
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Upload className="h-3.5 w-3.5 text-purple-600" />
+                    Process multiple files at once
+                  </li>
+                </ul>
               </div>
             </div>
           </CardContent>
