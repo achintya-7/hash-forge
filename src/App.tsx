@@ -18,8 +18,7 @@ declare global {
 interface FileItem {
   id: string;
   file: File;
-  hashHex?: string;
-  hashDecimal?: string;
+  hash?: string;
   algorithm?: string;
   status: 'pending' | 'loading' | 'calculating' | 'complete' | 'error';
   error?: string;
@@ -121,16 +120,16 @@ const App: React.FC = () => {
 
       console.log(`Starting hash calculation for: ${fileItem.file.name}`);
 
-      const result = JSON.parse(window.hashFile(uint8Array, algorithm));
+      const hash = window.hashFile(uint8Array, algorithm);
 
       // Set complete state
       setFiles(prev => prev.map(f =>
         f.id === fileItem.id
-          ? { ...f, status: 'complete' as const, hashHex: result.hex, hashDecimal: result.decimal, algorithm }
+          ? { ...f, status: 'complete' as const, hash, algorithm }
           : f
       ));
 
-      console.log(`Hash completed: ${result.hex}`);
+      console.log(`Hash completed: ${hash}`);
     } catch (err) {
       setFiles(prev => prev.map(f =>
         f.id === fileItem.id
@@ -185,7 +184,7 @@ const App: React.FC = () => {
     if (!hasComplete) return;
 
     setFiles(prev => prev.map(f =>
-      f.status === 'complete' ? { ...f, status: 'pending' as const, hashHex: undefined, hashDecimal: undefined, algorithm: undefined } : f
+      f.status === 'complete' ? { ...f, status: 'pending' as const, hash: undefined, algorithm: undefined } : f
     ));
     setPendingRecalculation(true);
   }, [algorithm]);
@@ -317,7 +316,7 @@ const App: React.FC = () => {
                         </div>
 
                         {/* Hash Result */}
-                        {fileItem.hashHex && (
+                        {fileItem.hash && (
                           <div className="bg-gray-50 p-3 rounded-lg border">
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2">
@@ -329,7 +328,7 @@ const App: React.FC = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => copyToClipboard(fileItem.hashHex!, fileItem.id)}
+                                onClick={() => copyToClipboard(fileItem.hash!, fileItem.id)}
                               >
                                 {copied === fileItem.id ?
                                   <CheckCircle className="h-4 w-4 text-green-600" /> :
@@ -338,16 +337,8 @@ const App: React.FC = () => {
                               </Button>
                             </div>
                             <code className="text-sm font-mono text-gray-800 break-all">
-                              {fileItem.hashHex}
+                              {fileItem.hash}
                             </code>
-                            {fileItem.hashDecimal && (
-                              <div className="mt-1 pt-1 border-t border-gray-200">
-                                <span className="text-xs text-gray-400 mr-1">decimal:</span>
-                                <code className="text-sm font-mono text-gray-600 break-all">
-                                  {fileItem.hashDecimal}
-                                </code>
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -361,7 +352,7 @@ const App: React.FC = () => {
                         )}
 
                         {/* Status for pending/processing */}
-                        {!fileItem.hashHex && !fileItem.error && (
+                        {!fileItem.hash && !fileItem.error && (
                           <div className="text-sm text-gray-500">
                             {fileItem.status === 'loading' && (
                               <div className="flex items-center gap-2">
