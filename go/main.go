@@ -1,7 +1,12 @@
 package main
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
+	"hash"
 	"syscall/js"
 
 	"github.com/zeebo/xxh3"
@@ -17,30 +22,52 @@ func registerCallbacks() {
 	js.Global().Set("hashFile", js.FuncOf(hashFile))
 }
 
+func newHasher(alg string) (hash.Hash, error) {
+	switch alg {
+	case "xxh3":
+		return xxh3.New(), nil
+	case "sha256":
+		return sha256.New(), nil
+	case "sha512":
+		return sha512.New(), nil
+	case "sha1":
+		return sha1.New(), nil
+	case "md5":
+		return md5.New(), nil
+	default:
+		return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
+	}
+}
+
 func hashFile(this js.Value, args []js.Value) interface{} {
 	if len(args) < 1 {
-		js.Global().Call("console.error", "Usage: hashFile(fileData)")
+		js.Global().Call("console.error", "Usage: hashFile(fileData, algorithm)")
 		return nil
 	}
 
 	fileData := args[0]
+	algorithm := "xxh3"
+	if len(args) > 1 {
+		algorithm = args[1].String()
+	}
 
-	// Get the length of the file data
 	length := fileData.Get("length").Int()
 	if length == 0 {
 		js.Global().Call("console.error", "File data is empty")
 		return nil
 	}
 
-	// Create buffer to hold file data
 	buffer := make([]byte, length)
 	js.CopyBytesToGo(buffer, fileData)
 
-	// Use a buffer of 256kb for performance
-	bufferSize := 256 * 1024 // 256kb
-	if length > bufferSize {
-		hasher := xxh3.New()
+	hasher, err := newHasher(algorithm)
+	if err != nil {
+		js.Global().Call("console.error", err.Error())
+		return nil
+	}
 
+	bufferSize := 256 * 1024
+	if length > bufferSize {
 		for offset := 0; offset < length; {
 			end := offset + bufferSize
 			if end > length {
@@ -60,15 +87,12 @@ func hashFile(this js.Value, args []js.Value) interface{} {
 
 			offset += len(chunk)
 		}
-		finalHash := hasher.Sum64()
-		fmt.Println("Hash calculated (chunked):", finalHash)
-		return fmt.Sprintf("%d", finalHash)
+	} else {
+		hasher.Write(buffer)
 	}
 
-	// Calculate hash directly
-	finalHash := xxh3.Hash(buffer)
-	fmt.Println("Hash calculated:", finalHash)
-
-	// Convert to string
-	return fmt.Sprintf("%d", finalHash)
+	hashBytes := hasher.Sum(nil)
+	result := fmt.Sprintf("%x", hashBytes)
+	fmt.Println("Hash calculated:", result)
+	return result
 }
