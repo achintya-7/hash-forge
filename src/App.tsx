@@ -190,14 +190,14 @@ const App: React.FC = () => {
   }, [algorithm]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-lg mb-4">
             <Hash className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Hash Forge
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
@@ -254,17 +254,17 @@ const App: React.FC = () => {
 
             {files.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4 border">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                     {files.length} file{files.length > 1 ? 's' : ''} selected
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={calculateAllHashes}
                       disabled={!wasmLoaded || files.every(f => f.status !== 'pending')}
-                      className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 focus:bg-green-200 focus:border-green-400 focus:ring-2 focus:ring-green-300 focus:outline-none disabled:bg-gray-50 disabled:border-gray-200 disabled:text-gray-400 transition-all duration-200"
+                      className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 focus:bg-green-200 focus:border-green-400 focus:ring-2 focus:ring-green-300 focus:outline-none disabled:bg-gray-50 disabled:border-gray-200 disabled:text-gray-400 transition-all duration-200 w-full sm:w-auto"
                     >
                       {files.some(f => f.status === 'loading' || f.status === 'calculating') ? (
                         <>
@@ -282,7 +282,7 @@ const App: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={clearAllFiles}
-                      className="text-red-600 hover:bg-red-50"
+                      className="text-red-600 hover:bg-red-50 w-full sm:w-auto"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Clear All
@@ -300,20 +300,20 @@ const App: React.FC = () => {
             {files.map((fileItem) => (
               <Card key={fileItem.id} className="border shadow-sm">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0">
                         <FileText className="h-6 w-6 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium text-gray-900 truncate">
-                            {fileItem.file.name}
-                          </h3>
-                          <Badge variant="secondary" className="text-xs">
-                            {formatFileSize(fileItem.file.size)}
-                          </Badge>
-                        </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+                            <h3 className="font-medium text-gray-900 truncate">
+                              {fileItem.file.name}
+                            </h3>
+                            <Badge variant="secondary" className="text-xs w-fit">
+                              {formatFileSize(fileItem.file.size)}
+                            </Badge>
+                          </div>
 
                         {/* Hash Result */}
                         {fileItem.hash && (
@@ -383,6 +383,7 @@ const App: React.FC = () => {
                           fileItem.status === 'complete' ? 'default' :
                             fileItem.status === 'error' ? 'destructive' : 'secondary'
                         }
+                        className="shrink-0"
                       >
                         {fileItem.status === 'loading' || fileItem.status === 'calculating' ? (
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -400,6 +401,7 @@ const App: React.FC = () => {
                           size="sm"
                           onClick={() => calculateHash(fileItem)}
                           disabled={!wasmLoaded}
+                          className="shrink-0"
                         >
                           <Hash className="h-4 w-4" />
                         </Button>
@@ -408,7 +410,7 @@ const App: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => removeFile(fileItem.id)}
-                        className="text-red-600 hover:bg-red-50"
+                        className="text-red-600 hover:bg-red-50 shrink-0"
                       >
                         <X className="h-4 w-4" />
                       </Button>
