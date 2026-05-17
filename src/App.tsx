@@ -174,6 +174,25 @@ const App: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Recalculate when algorithm changes
+  useEffect(() => {
+    if (!wasmLoaded || files.length === 0) return;
+    const completedFiles = files.filter(f => f.status === 'complete');
+    if (completedFiles.length === 0) return;
+
+    setFiles(prev => prev.map(f =>
+      f.status === 'complete' ? { ...f, status: 'pending' as const, hash: undefined, algorithm: undefined } : f
+    ));
+
+    const id = setTimeout(async () => {
+      for (const fileItem of completedFiles) {
+        await calculateHash(fileItem);
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
+  }, [algorithm]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-4xl mx-auto">
