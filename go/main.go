@@ -93,9 +93,10 @@ func hashFile(this js.Value, args []js.Value) interface{} {
 
 	var result string
 	if alg, ok := hasher.(*xxh3.XXH3); ok {
-		result = fmt.Sprintf("%d", alg.Sum64())
+		sum := alg.Sum64()
+		result = fmt.Sprintf(`{"hex":"%x","decimal":"%d"}`, sum, sum)
 	} else {
-		result = fmt.Sprintf("%x", hasher.Sum(nil))
+		result = fmt.Sprintf(`{"hex":"%x"}`, hasher.Sum(nil))
 	}
 	fmt.Println("Hash calculated:", result)
 	return result
