@@ -38,6 +38,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [copied, setCopied] = useState<string>("");
   const [algorithm, setAlgorithm] = useState<string>("xxh3");
+  const [pendingRecalculation, setPendingRecalculation] = useState(false);
 
   // Load WASM on component mount
   useEffect(() => {
@@ -141,6 +142,8 @@ const App: React.FC = () => {
     const pendingFiles = files.filter(f => f.status === 'pending');
     if (pendingFiles.length === 0 || !wasmLoaded) return;
 
+    setPendingRecalculation(false);
+
     try {
       // Process files one by one
       for (const fileItem of pendingFiles) {
@@ -174,23 +177,16 @@ const App: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Recalculate when algorithm changes
+  // Reset completed hashes when algorithm changes
   useEffect(() => {
     if (!wasmLoaded || files.length === 0) return;
-    const completedFiles = files.filter(f => f.status === 'complete');
-    if (completedFiles.length === 0) return;
+    const hasComplete = files.some(f => f.status === 'complete');
+    if (!hasComplete) return;
 
     setFiles(prev => prev.map(f =>
       f.status === 'complete' ? { ...f, status: 'pending' as const, hash: undefined, algorithm: undefined } : f
     ));
-
-    const id = setTimeout(async () => {
-      for (const fileItem of completedFiles) {
-        await calculateHash(fileItem);
-      }
-    }, 0);
-
-    return () => clearTimeout(id);
+    setPendingRecalculation(true);
   }, [algorithm]);
 
   return (
@@ -278,7 +274,7 @@ const App: React.FC = () => {
                       ) : (
                         <>
                           <Hash className="h-4 w-4 mr-2 text-green-600" />
-                          Calculate All Hashes
+                          {pendingRecalculation ? "Recalculate All Hashes" : "Calculate All Hashes"}
                         </>
                       )}
                     </Button>
